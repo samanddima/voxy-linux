@@ -29,6 +29,7 @@
             evdev
             numpy
             pynput
+            tkinter
             mypy
             pytest
             ruff
@@ -44,21 +45,30 @@
         waylandSystemDeps = with pkgs; [ wl-clipboard ydotool gtk4 gtk4-layer-shell ];
 
         # X11-specific deps (mirrors pyproject x11 extra).
-        x11PythonDeps = ps: with ps; [ tkinter xlib pycairo ];
+        x11PythonDeps = ps: with ps; [ xlib pycairo ];
         x11SystemDeps = with pkgs; [ xclip xdotool xprop ];
 
         mkVoxy = pythonInterp: extraPythonDeps: extraSystemDeps:
           pythonInterp.pkgs.buildPythonApplication {
             pname = "voxy-linux";
-            version = "0.1.0";
+            version = (pkgs.lib.importTOML ./pyproject.toml).project.version;
             src = ./.;
             format = "pyproject";
 
-            nativeBuildInputs = with pythonInterp.pkgs; [ setuptools ];
+            nativeBuildInputs = with pythonInterp.pkgs; [ setuptools ] ++ [ pkgs.makeWrapper ];
             propagatedBuildInputs =
               (corePythonDeps pythonInterp.pkgs)
               ++ (extraPythonDeps pythonInterp.pkgs)
               ++ extraSystemDeps;
+
+            postFixup = ''
+              wrapProgram $out/bin/voxy \
+                --prefix PATH : ${pkgs.lib.makeBinPath extraSystemDeps}
+            '';
+
+            meta = {
+              mainProgram = "voxy";
+            };
           };
 
       in
